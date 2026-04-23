@@ -12,28 +12,32 @@ set +a
 
 mkdir -p "${BACKUP_DIR}"
 
+DB_BACKUP_FILE="${BACKUP_DIR}/db-${DATE}.sql.gz"
+N8N_BACKUP_FILE="${BACKUP_DIR}/n8n-${DATE}.tar.gz"
+ENV_BACKUP_FILE="${BACKUP_DIR}/env-${DATE}.bak"
+
 echo "Creating PostgreSQL backup..."
-docker exec -t n8n-postgres-1 pg_dump -U "${POSTGRES_USER}" "${POSTGRES_DB}" > "${BACKUP_DIR}/db-${DATE}.sql"
+docker exec -t n8n-postgres-1 pg_dump -U "${POSTGRES_USER}" "${POSTGRES_DB}" | gzip > "${DB_BACKUP_FILE}"
 
 # Verify DB backup
-if [ ! -s "${BACKUP_DIR}/db-${DATE}.sql" ]; then
+if [ ! -s "${DB_BACKUP_FILE}" ]; then
   echo "ERROR: Database backup is empty!"
   exit 1
 fi
 
 echo "Archiving n8n files..."
-tar -czf "${BACKUP_DIR}/n8n-${DATE}.tar.gz" -C "${APP_DIR}" n8n
+tar -czf "${N8N_BACKUP_FILE}" -C "${APP_DIR}" n8n
 
 echo "Saving environment file..."
-cp "${APP_DIR}/.env" "${BACKUP_DIR}/env-${DATE}.bak"
+cp "${APP_DIR}/.env" "${ENV_BACKUP_FILE}"
 
 echo "Removing backups older than 7 days..."
 find "${BACKUP_DIR}" -type f -mtime +7 -delete
 
 echo "Backup created:"
-echo "  - ${BACKUP_DIR}/db-${DATE}.sql"
-echo "  - ${BACKUP_DIR}/n8n-${DATE}.tar.gz"
-echo "  - ${BACKUP_DIR}/env-${DATE}.bak"
+echo "  - ${DB_BACKUP_FILE}"
+echo "  - ${N8N_BACKUP_FILE}"
+echo "  - ${ENV_BACKUP_FILE}"
 
 echo "Uploading backups to Google Drive..."
 if rclone copy /opt/backups gdrive:n8n-backups --progress; then
@@ -43,5 +47,4 @@ else
 fi
 
 echo "Backup process completed successfully at $(date)"
-
 echo "SUCCESS $(date)" >> /var/log/n8n-backup.log

@@ -3,7 +3,7 @@ set -euo pipefail
 
 if [ "$#" -ne 3 ]; then
   echo "Usage:"
-  echo "  $0 <db-backup.sql> <n8n-backup.tar.gz> <env-backup.bak>"
+  echo "  $0 <db-backup.sql|db-backup.sql.gz> <n8n-backup.tar.gz> <env-backup.bak>"
   exit 1
 fi
 
@@ -45,10 +45,7 @@ echo "Restoring n8n files..."
 rm -rf "${APP_DIR}/n8n"
 tar -xzf "${N8N_BACKUP}" -C "${APP_DIR}"
 
-# Normalize extracted directory structure if needed
-if [ -d "${APP_DIR}/n8n" ]; then
-  :
-else
+if [ ! -d "${APP_DIR}/n8n" ]; then
   echo "Expected restored directory ${APP_DIR}/n8n not found after extraction."
   exit 1
 fi
@@ -70,9 +67,13 @@ docker exec -i "${POSTGRES_CONTAINER}" psql -U "${POSTGRES_USER}" -d postgres -c
 docker exec -i "${POSTGRES_CONTAINER}" psql -U "${POSTGRES_USER}" -d postgres -c "CREATE DATABASE \"${POSTGRES_DB}\";"
 
 echo "Restoring database backup..."
-cat "${DB_BACKUP}" | docker exec -i "${POSTGRES_CONTAINER}" psql -U "${POSTGRES_USER}" -d "${POSTGRES_DB}"
+if [[ "${DB_BACKUP}" == *.gz ]]; then
+  gunzip -c "${DB_BACKUP}" | docker exec -i "${POSTGRES_CONTAINER}" psql -U "${POSTGRES_USER}" -d "${POSTGRES_DB}"
+else
+  cat "${DB_BACKUP}" | docker exec -i "${POSTGRES_CONTAINER}" psql -U "${POSTGRES_USER}" -d "${POSTGRES_DB}"
+fi
 
 echo "Starting full stack..."
 docker compose up -d
 
-echo "Restore completed."
+echo "Restore completed successfully."
