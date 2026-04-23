@@ -43,3 +43,5 @@ else
 fi
 
 echo "Backup process completed successfully at $(date)"
+
+echo "SUCCESS $(date)" >> /var/log/n8n-backup.log
