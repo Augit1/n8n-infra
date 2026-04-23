@@ -1,0 +1,9 @@
+.env
+n8n/
+postgres/
+backups/
+caddy_config/
+caddy_data/
+*.sql
+*.tar.gz
+*.bak
